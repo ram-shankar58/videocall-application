@@ -1,5 +1,5 @@
 import React, {createContext, useState, useRef, useEffect} from "react";
-import { io } from "socket.io/client";
+import { io } from "socket.io-client";
 import Peer from 'simple-peer';
 
 const SocketContext = createContext();
@@ -7,10 +7,10 @@ const SocketContext = createContext();
 const socket=io('http://localhost:5000'); //pass url of deployed server later
 
 const ContextProvider = ({children})=>{
-    const [stream, setStream] = useState(null);
+    const [stream, setStream] = useState();
     const myVideo = useRef();
     const [me, setMe]=useState("");
-    const[call, setCall]=useState(null);
+    const[call, setCall]=useState({});
     const [callAccepted, setCallAccepted]=useState(false);
     const[callEnded, setCallEnded]=useState(false);
     const userVideo = useRef();
@@ -18,14 +18,14 @@ const ContextProvider = ({children})=>{
     const[name, setName]=useState('');
 
     useEffect(() =>{
-        navigator.mediaDevices.getUserMedia({video:true, audio:true}).then((currentstream)=>{
-            setStream(currentstream);
+        navigator.mediaDevices.getUserMedia({video:true, audio:true}).then((currentStream)=>{
+            setStream(currentStream);
             myVideo.current.srcObject=currentStream
 ; //ew set to ref which populate our video iframe;
         });
-        socket.on('me',(id)=> setImmediate(id)); //we listen for the me action
+        socket.on('me',(id)=> setMe(id)); //we listen for the me action
         socket.on('calluser', ({from, name:callerName, signal})=>{
-            setCall({isReceivedCall: true, from, name:callerName, signal})
+            setCall({isReceivingCall: true, from, name:callerName, signal});
             
         });
     }, []); //we have empty dependencyarray becuse else its always gonna run
@@ -35,11 +35,11 @@ const ContextProvider = ({children})=>{
 
         const peer=new Peer({initiator: false, trickle: false, stream});
         peer.on('signal', (data)=>{
-            socket.emit('answercall', {signal: DataTransfer, to:call.from})
+            socket.emit('answercall', {signal: data, to:call.from})
         });
 
         peer.on('stream', (currentStream)=>{
-            userVideo.current.srcObject-currentStream;
+            userVideo.current.srcObject=currentStream;
         });
 
         peer.signal(call.signal);
@@ -55,7 +55,7 @@ const ContextProvider = ({children})=>{
         });
 
         peer.on('stream', (currentStream)=>{
-            userVideo.current.srcObject-currentStream;
+            userVideo.current.srcObject=currentStream;
         });
 
         socket.on('callaccepted', (signal)=>{
@@ -77,7 +77,7 @@ const ContextProvider = ({children})=>{
 
     return (
         //everythignwe give in as value is globally accepible
-        <SocketContext.provider value={{
+        <SocketContext.Provider value={{
             call,
             callAccepted,
             myVideo,
@@ -91,9 +91,9 @@ const ContextProvider = ({children})=>{
             answerCall,
         }}>
             {children}
-        </SocketContext.provider>
-    )
-}
+        </SocketContext.Provider>
+    );
+};
 
 export {ContextProvider, SocketContext};
 
